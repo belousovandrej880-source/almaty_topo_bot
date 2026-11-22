@@ -1,0 +1,96 @@
+import asyncio
+import json
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import CommandStart
+from aiogram.types import (
+    Message,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    WebAppInfo,
+)
+
+BOT_TOKEN = "9155109208:AAFKS7NEA-jonmNh2EcjpRgIFLR-e0DgRxBk"
+WEBAPP_URL = "https://belousovandrej880-source.github.io/Almaty-topo/"
+
+dp = Dispatcher()
+
+
+def main_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="Открыть топо-приложение",
+                    web_app=WebAppInfo(url=WEBAPP_URL),
+                )
+            ],
+            [
+                KeyboardButton(text="Скалы Лесничества"),
+                KeyboardButton(text="Подход и камалоты"),
+            ],
+        ],
+        resize_keyboard=True,
+    )
+
+
+@dp.message(CommandStart())
+async def start_cmd(message: Message):
+    await message.answer(
+        "Схемы скал Алматы и разбор маршрутов готовы. Нажми «Открыть топо-приложение», "
+        "чтобы посмотреть рельеф и точки страховки.",
+        reply_markup=main_kb(),
+    )
+
+
+@dp.message(F.text == "Скалы Лесничества")
+async def lesnichestvo_cmd(message: Message):
+    await message.answer(
+        "<b>Скалы Лесничества (окрестности Медео)</b>\n"
+        "• Автобус №12, южная экспозиция (летом жарко, в остальное время хорошо; весной по выходным людно)[span_5](start_span)[span_5](end_span)\n"
+        "• Верхняя страховка на штырях или трэд (камалоты до #3, на отдельных маршрутах до #4)[span_6](start_span)[span_6](end_span)\n"
+        "• Справа места под палатки, чуть выше озерца — труба с питьевой водой[span_7](start_span)[span_7](end_span)\n"
+        "• Карниз «Рояль» в середине массива обвалился после занятий альпинистов до 2016 года[span_8](start_span)[span_8](end_span)",
+        parse_mode="HTML",
+        reply_markup=main_kb(),
+    )
+
+
+@dp.message(F.text == "Подход и камалоты")
+async def gear_cmd(message: Message):
+    await message.answer(
+        "<b>Ориентиры по железу на Лесничестве:</b>\n"
+        "• База для трэда — камалоты до #3[span_9](start_span)[span_9](end_span)\n"
+        "• Точечно понадобятся #0.3, #0.5 и #4 (например, на «Щели», «Утюгах» и «Щели справа»)[span_10](start_span)[span_10](end_span)\n"
+        "• Точные места закладок смотри на схеме внутри приложения[span_11](start_span)[span_11](end_span)[span_12](start_span)[span_12](end_span).",
+        parse_mode="HTML",
+        reply_markup=main_kb(),
+    )
+
+
+@dp.message(F.web_app_data)
+async def on_webapp_data(message: Message):
+    raw = message.web_app_data.data
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        await message.answer(f"Получены данные: {raw}")
+        return
+
+    if data.get("action") == "route_key":
+        gear_list = ", ".join(data.get("gear") or []) or "по рельефу"
+        text = (
+            f"<b>#{data.get('number')} {data.get('title')}</b> ({data.get('grade')}, {data.get('length')})\n"
+            f"Локация: {data.get('sector')}\n"
+            f"Железо: {gear_list}\n\n"
+            f"{data.get('summary', '')}"
+        )
+        await message.answer(text, parse_mode="HTML")
+
+
+async def main():
+    bot = Bot(token=BOT_TOKEN)
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
